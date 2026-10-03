@@ -1,0 +1,44 @@
+name: Build Picked Items DLL
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip source
+        shell: pwsh
+        run: Expand-Archive -Path source.zip -DestinationPath . -Force
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Make sure Ninja exists
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { choco install ninja -y }
+
+      - name: Configure
+        shell: cmd
+        working-directory: dll-oss-main
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DPICKED_ITEMS_ONLY=ON
+
+      - name: Build
+        shell: cmd
+        working-directory: dll-oss-main
+        run: cmake --build build
+
+      - name: Upload DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Flarial_PickedItems_DLL
+          path: dll-oss-main/build/Flarial.dll
+          if-no-files-found: error
